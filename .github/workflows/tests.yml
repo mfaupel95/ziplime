@@ -2,9 +2,11 @@ name: Tests
 
 on:
   pull_request:
-    branches: [master, dev]
   push:
-    branches: [master, dev]
+    branches: [master, dev, hermes/review-C-20261109]
+
+permissions:
+  contents: read
 
 jobs:
   pytest:
@@ -13,6 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
         persist-credentials: false
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -27,7 +30,11 @@ jobs:
       with:
         path: .venv
         key: venv-${{ runner.os }}-py312-${{ hashFiles('poetry.lock') }}
+    - name: Check dependency lock consistency
+      run: poetry check --lock
     - name: Install ziplime with every extra and the dev group
       run: poetry install --all-extras --with dev --without docs --no-interaction
+    - name: Prove native Numba missing-volume execution
+      run: poetry run python -m tests.vectorized.verify_numba_volume
     - name: Run the test suite
       run: poetry run pytest tests -q
