@@ -15,7 +15,7 @@ import pandas as pd
 #: Bumped when the kernel's *decisions* change -- ordering, rejection, cost application -- not
 #: when its implementation is tidied. A result carries it so a number can be traced back to the
 #: semantics that produced it.
-VECTOR_KERNEL_VERSION = "1.0.0"
+VECTOR_KERNEL_VERSION = "1.0.1"
 
 #: Which price a fill is taken at, given the bar the signal was raised on.
 #:

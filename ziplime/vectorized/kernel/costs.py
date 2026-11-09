@@ -20,6 +20,7 @@ error, it surfaces as a better return.
 from __future__ import annotations
 
 import dataclasses
+import math
 
 from ziplime.finance.commission.commission_model import CommissionModel
 from ziplime.finance.commission.no_commission import NoCommission
@@ -61,10 +62,14 @@ class ResolvedSlippage:
         zero for exactly this reason, and the same clamp is here. `None` volume means the caller
         gave no volume frame, which is "no opinion" rather than "a bar that trades nothing" --
         capping to zero there would silently stop every strategy that did not pass volumes.
+        A supplied non-finite capacity, however, is unusable liquidity and permits no fill.
         """
         if self.volume_limit is None or volume is None:
             return wanted
-        return min(wanted, max(0.0, float(volume) * self.volume_limit))
+        room = float(volume) * self.volume_limit
+        if not math.isfinite(room):
+            return 0.0
+        return min(wanted, max(0.0, room))
 
 
 def resolve_slippage(model: SlippageModel | None) -> ResolvedSlippage:

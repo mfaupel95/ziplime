@@ -190,7 +190,9 @@ def run_events(
             capped = abs(wanted)
             if has_volume_limit and has_volume:
                 room = volume_values[bar, column] * slip_volume_limit
-                if room < 0.0:
+                # Missing/non-finite liquidity is not unlimited capacity. In particular,
+                # comparisons with NaN are false and would otherwise leave `capped` intact.
+                if not np.isfinite(room) or room < 0.0:
                     room = 0.0
                 if room < capped:
                     capped = room
