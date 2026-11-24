@@ -1699,7 +1699,18 @@ class TradingAlgorithm(BaseTradingAlgorithm):
             exchange = await self.exchange_repository.get_exchange_by_mic(mic=exchange_name)
         order_id = uuid.uuid4().hex[:20]
 
+        from ziplime.exchanges.simulation_exchange import SimulationExchange
+        from ziplime.finance.slippage.no_slippage import NoSlippage
+
         order_qty_rounded = int(round_if_near_integer(amount))
+        if isinstance(exchange, SimulationExchange):
+            try:
+                slippage_model = exchange.get_slippage_model(asset)
+            except KeyError:
+                # Preserve order creation; the fill path still requires a model.
+                slippage_model = None
+            if type(slippage_model) is NoSlippage:
+                order_qty_rounded = round_if_near_integer(amount)
 
         order = Order(
             dt=self.simulation_dt,

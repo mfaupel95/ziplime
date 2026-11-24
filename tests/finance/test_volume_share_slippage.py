@@ -109,3 +109,71 @@ async def test_simulate_uses_selected_price_and_cumulative_bar_volume(exchange, 
         90.0 * (1 + 0.1 * 0.025 ** 2),
     ])
     assert model.volume_for_bar == 25
+
+
+@pytest.mark.asyncio
+async def test_simulate_preserves_fractional_fill(exchange, dt, asset, order):
+    from ziplime.finance.slippage.no_slippage import NoSlippage
+
+    order.amount = 0.75
+    model = NoSlippage()
+    fills = [
+        transaction.amount
+        async for _, transaction in model.simulate(
+            exchange, frozenset({asset}), [order], dt,
+            same_bar_execution=True, price_used_in_order_execution="open",
+        )
+    ]
+    assert fills == [0.75]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model_name, expected", [
+    ("NoSlippage", 0.75), ("FixedSlippage", 0),
+    ("FixedBasisPointsSlippage", 0), ("VolumeShareSlippage", 0), ("unmapped", 0),
+])
+async def test_simulation_order_quantity_is_model_scoped(dt, asset, model_name, expected):
+    from ziplime.exchanges.simulation_exchange import SimulationExchange
+    from ziplime.finance.slippage.fixed_basis_points_slippage import FixedBasisPointsSlippage
+    from ziplime.finance.slippage.fixed_slippage import FixedSlippage
+    from ziplime.finance.slippage.no_slippage import NoSlippage
+    from ziplime.trading.trading_algorithm import TradingAlgorithm
+
+    classes = (NoSlippage, FixedSlippage, FixedBasisPointsSlippage, VolumeShareSlippage)
+    exchange = Mock(spec=SimulationExchange, name="simulated")
+    exchange.name = "TEST"
+    exchange.account_id = "account"
+    if model_name == "unmapped":
+        exchange.get_slippage_model.side_effect = lambda asset: SimulationExchange._model_for(
+            {}, asset, "slippage"
+        )
+    else:
+        exchange.get_slippage_model.return_value = next(c for c in classes if c.__name__ == model_name)()
+    exchange.submit_order = AsyncMock(side_effect=lambda *, order: order)
+    asset.asset = object()
+    asset.mic = "TEST"
+    algorithm = Mock()
+    algorithm.simulation_dt = dt
+    algorithm.new_orders = {}
+    algorithm._in_before_trading_start = False
+    algorithm.exchange_repository.get_default_exchange = AsyncMock(return_value=exchange)
+    algorithm.validate_order_params = AsyncMock()
+
+    await TradingAlgorithm.order(algorithm, asset, 0.75, style=MarketOrder())
+
+    assert exchange.submit_order.await_args.kwargs["order"].amount == expected
+
+
+@pytest.mark.asyncio
+async def test_fixed_basis_points_keeps_integer_transaction(exchange, dt, asset, order):
+    from ziplime.finance.slippage.fixed_basis_points_slippage import FixedBasisPointsSlippage
+
+    order.amount = 1.75
+    fills = [
+        transaction.amount
+        async for _, transaction in FixedBasisPointsSlippage().simulate(
+            exchange, frozenset({asset}), [order], dt,
+            same_bar_execution=True, price_used_in_order_execution="open",
+        )
+    ]
+    assert fills == [1]
