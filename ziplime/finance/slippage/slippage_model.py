@@ -170,7 +170,8 @@ class SlippageModel(metaclass=FinancialModelMeta):
                         id=uuid.uuid4().hex,
                         asset=order.asset,
                         amount=(round_if_near_integer(execution_volume)
-                                if type(self) is NoSlippage else int(execution_volume)),
+                                if type(self) is NoSlippage and not isinstance(order.asset.asset, Bond)
+                                else int(execution_volume)),
                         dt=current_dt,
                         price=execution_price,
                         order_id=order.id,

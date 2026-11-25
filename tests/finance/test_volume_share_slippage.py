@@ -4,6 +4,8 @@ from unittest.mock import AsyncMock, Mock
 import polars as pl
 import pytest
 
+from ziplime.assets.entities.bond import Bond
+from ziplime.assets.entities.equity import Equity
 from ziplime.assets.entities.exchange_asset import ExchangeAsset
 from ziplime.errors import LiquidityExceeded
 from ziplime.exchanges.exchange import Exchange
@@ -20,7 +22,7 @@ def dt():
 
 @pytest.fixture
 def asset():
-    return Mock(spec=ExchangeAsset, symbol="TEST")
+    return Mock(spec=ExchangeAsset, symbol="TEST", asset=Mock(spec=Equity))
 
 
 @pytest.fixture
@@ -112,10 +114,12 @@ async def test_simulate_uses_selected_price_and_cumulative_bar_volume(exchange, 
 
 
 @pytest.mark.asyncio
-async def test_simulate_preserves_fractional_fill(exchange, dt, asset, order):
+@pytest.mark.parametrize("instrument, expected", [(Equity, 1.75), (Bond, 1)])
+async def test_no_slippage_fill_quantity_depends_on_instrument(exchange, dt, asset, order, instrument, expected):
     from ziplime.finance.slippage.no_slippage import NoSlippage
 
-    order.amount = 0.75
+    asset.asset = Mock(spec=instrument)
+    order.amount = 1.75
     model = NoSlippage()
     fills = [
         transaction.amount
@@ -124,7 +128,7 @@ async def test_simulate_preserves_fractional_fill(exchange, dt, asset, order):
             same_bar_execution=True, price_used_in_order_execution="open",
         )
     ]
-    assert fills == [0.75]
+    assert fills == [expected]
 
 
 @pytest.mark.asyncio

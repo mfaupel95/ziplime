@@ -1703,7 +1703,7 @@ class TradingAlgorithm(BaseTradingAlgorithm):
         from ziplime.finance.slippage.no_slippage import NoSlippage
 
         order_qty_rounded = int(round_if_near_integer(amount))
-        if isinstance(exchange, SimulationExchange):
+        if isinstance(exchange, SimulationExchange) and not isinstance(asset.asset, Bond):
             try:
                 slippage_model = exchange.get_slippage_model(asset)
             except KeyError:
