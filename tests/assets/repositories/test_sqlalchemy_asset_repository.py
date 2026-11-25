@@ -333,5 +333,37 @@ class SqlAlchemyAssetRepositoryTests(unittest.IsolatedAsyncioTestCase):
                 AssetSymbol("LIFE", "XLIFE"), AssetType.COMMODITY)
 
 
+    async def test_listing_lookup_picks_lowest_sid_per_exchange_and_symbol(self):
+        first_exchange = ExchangeInfo("XDUP", "Duplicate Exchange", "DUP", "ZZ")
+        other_exchange = ExchangeInfo("XALT", "Other Exchange", "ALT", "ZZ")
+        await self.repository.save_exchanges([first_exchange, other_exchange])
+        [currency] = await self.repository.save_currencies([make_currency()])
+        first_equity, second_equity = await self.repository.save_equities([
+            make_equity("DUP-FIRST", "DUP-FIRST-ISIN"),
+            make_equity("DUP-SECOND", "DUP-SECOND-ISIN"),
+        ])
+        first, second, other = await self.repository.save_exchange_assets([
+            ExchangeAsset(
+                sid=None, symbol="DUP", start_date=equity.start_date,
+                end_date=equity.end_date, first_traded=equity.first_traded,
+                auto_close_date=equity.auto_close_date, external_id=equity.asset_name,
+                exchange=exchange, asset=equity, quote=currency,
+            )
+            for equity, exchange in (
+                (first_equity, first_exchange), (second_equity, first_exchange),
+                (first_equity, other_exchange),
+            )
+        ])
+        assert first.sid is not None and second.sid is not None
+        self.assertLess(first.sid, second.sid)
+
+        found = await self.repository.get_exchange_equities_by_symbols([AssetSymbol("DUP", None)])
+
+        self.assertCountEqual(
+            [(listing.mic, listing.sid) for listing in found],
+            [(first_exchange.mic, first.sid), (other_exchange.mic, other.sid)],
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
