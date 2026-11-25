@@ -16,6 +16,7 @@ from ziplime.assets.entities.option_contract import OptionContract
 from ziplime.errors import LiquidityExceeded
 from ziplime.exchanges.exchange import Exchange
 from ziplime.finance.shared import FinancialModelMeta
+from ziplime.utils.math_utils import round_if_near_integer
 from ziplime.finance.domain.transaction import Transaction
 
 SELL = 1 << 0
@@ -163,10 +164,14 @@ class SlippageModel(metaclass=FinancialModelMeta):
                 )
 
                 if execution_price is not None:
+                    from ziplime.finance.slippage.no_slippage import NoSlippage
+
                     txn = Transaction(
                         id=uuid.uuid4().hex,
                         asset=order.asset,
-                        amount=int(execution_volume),
+                        amount=(round_if_near_integer(execution_volume)
+                                if type(self) is NoSlippage and not isinstance(order.asset.asset, Bond)
+                                else int(execution_volume)),
                         dt=current_dt,
                         price=execution_price,
                         order_id=order.id,
