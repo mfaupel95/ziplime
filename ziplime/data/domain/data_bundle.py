@@ -184,7 +184,7 @@ class DataBundle(DataSource):
 
         if self.frequency_td < frequency_td:
             df = df_raw.group_by_dynamic(
-                index_column="date", every=frequency, by="sid").agg(pl.col(field).last() for field in fields)
+                index_column="date", every=frequency, group_by="sid").agg(pl.col(field).last() for field in fields)
             return df
         return df_raw
 
@@ -228,7 +228,7 @@ class DataBundle(DataSource):
                     pl.col("sid").is_in([asset.sid for asset in assets])).group_by(pl.col("sid")).all()
         if self.frequency < frequency:
             df = df.group_by_dynamic(
-                index_column="date", every=frequency, by="sid").agg(pl.col(field).last() for field in fields)
+                index_column="date", every=frequency, group_by="sid").agg(pl.col(field).last() for field in fields)
         return df.sort(by="date")
 
     def get_missing_data_by_limit(self, fields: frozenset[str],
@@ -345,7 +345,7 @@ class DataBundle(DataSource):
 
         if self.frequency_td < frequency_td:
             df = df_raw.group_by_dynamic(
-                index_column="date", every=frequency, by="sid").agg(pl.col(field).last() for field in fields).tail(
+                index_column="date", every=frequency, group_by="sid").agg(pl.col(field).last() for field in fields).tail(
                 limit)
             return df
         return df_raw
