@@ -342,7 +342,7 @@ class SqlAlchemyAssetRepositoryTests(unittest.IsolatedAsyncioTestCase):
             make_equity("DUP-FIRST", "DUP-FIRST-ISIN"),
             make_equity("DUP-SECOND", "DUP-SECOND-ISIN"),
         ])
-        first, second, other = await self.repository.save_exchange_assets([
+        ineligible, first, second, other = await self.repository.save_exchange_assets([
             ExchangeAsset(
                 sid=None, symbol="DUP", start_date=equity.start_date,
                 end_date=equity.end_date, first_traded=equity.first_traded,
@@ -350,11 +350,13 @@ class SqlAlchemyAssetRepositoryTests(unittest.IsolatedAsyncioTestCase):
                 exchange=exchange, asset=equity, quote=currency,
             )
             for equity, exchange in (
+                (currency, first_exchange),
                 (first_equity, first_exchange), (second_equity, first_exchange),
                 (first_equity, other_exchange),
             )
         ])
-        assert first.sid is not None and second.sid is not None
+        assert ineligible.sid is not None and first.sid is not None and second.sid is not None
+        self.assertLess(ineligible.sid, first.sid)
         self.assertLess(first.sid, second.sid)
 
         found = await self.repository.get_exchange_equities_by_symbols([AssetSymbol("DUP", None)])
