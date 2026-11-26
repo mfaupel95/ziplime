@@ -200,7 +200,7 @@ class LimeTraderSdkDataSource(DataBundleSource):
         df_raw = df_raw.filter(pl.col("date") >= start_dt, pl.col("date") <= end_dt)
         if multiplier != 1:
             df = df_raw.group_by_dynamic(
-                index_column="date", every=frequency, by="sid").agg(pl.col(field).last() for field in fields).tail(
+                index_column="date", every=frequency, group_by="sid").agg(pl.col(field).last() for field in fields).tail(
                 limit)
             return df.select(pl.col(col) for col in fields)
 

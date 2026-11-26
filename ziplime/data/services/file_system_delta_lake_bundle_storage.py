@@ -141,7 +141,7 @@ class FileSystemDeltaLakeBundleStorage(BundleStorage):
 
             if data_bundle.aggregation_specification:
                 pl_parquet = pl_parquet.group_by_dynamic(
-                    index_column="date", every=frequency, by="sid").agg(
+                    index_column="date", every=frequency, group_by="sid").agg(
                     pl.col(field).last() for field in pl_parquet.collect_schema().names() if
                     field not in ('sid', 'date')
                 )
@@ -174,10 +174,10 @@ class FileSystemDeltaLakeBundleStorage(BundleStorage):
                         if col not in aggregation_columns and col not in ('sid', 'date')
                     ]
                     pl_parquet = pl_parquet.group_by_dynamic(
-                        index_column="date", every=frequency, by="sid").agg(*aggregations, *missing_aggregation_columns)
+                        index_column="date", every=frequency, group_by="sid").agg(*aggregations, *missing_aggregation_columns)
                 else:
                     pl_parquet = pl_parquet.group_by_dynamic(
-                        index_column="date", every=frequency, by="sid").agg(
+                        index_column="date", every=frequency, group_by="sid").agg(
                         pl.col(field).last() for field in pl_parquet.collect_schema().names() if
                         field not in ('sid', 'date')
                     )
