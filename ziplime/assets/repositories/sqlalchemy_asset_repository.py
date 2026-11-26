@@ -1034,7 +1034,7 @@ class SqlAlchemyAssetRepository(AssetRepository):
 
     async def _get_exchange_assets_by_symbols(self, symbols: list[AssetSymbol],
                                               asset_type: type) -> list[ExchangeAsset]:
-        """Resolve ``(symbol, mic)`` pairs to listings whose underlying is of ``asset_type``."""
+        """Return the lowest-SID listing of ``asset_type`` per ``(mic, symbol)``."""
         filter_mic = tuple_(ExchangeAssetModel.symbol, ExchangeAssetModel.mic).in_(
             [(s.symbol, s.mic) for s in symbols if s.mic is not None]
         )
@@ -1044,11 +1044,14 @@ class SqlAlchemyAssetRepository(AssetRepository):
                 select(ExchangeAssetModel)
                 .where(filter_mic | filter_non_mic)
                 .options(selectinload(ExchangeAssetModel.asset_router))
-            ).distinct(ExchangeAssetModel.mic, ExchangeAssetModel.symbol).order_by(
-                ExchangeAssetModel.mic, ExchangeAssetModel.symbol, "sid")
+            ).order_by(ExchangeAssetModel.mic, ExchangeAssetModel.symbol, ExchangeAssetModel.sid)
             listings: list[ExchangeAssetModel] = list((await session.execute(q)).scalars())
 
         all_assets = await self.get_all_assets()
+        first_listings: dict[tuple[str, str], ExchangeAssetModel] = {}
+        for listing in listings:
+            if isinstance(all_assets.get(listing.asset_id), asset_type):
+                first_listings.setdefault((listing.mic, listing.symbol), listing)
         return [
             ExchangeAsset(
                 sid=listing.sid,
@@ -1062,8 +1065,7 @@ class SqlAlchemyAssetRepository(AssetRepository):
                 quote=all_assets[listing.quote_id],
                 external_id=listing.external_id,
             )
-            for listing in listings
-            if isinstance(all_assets.get(listing.asset_id), asset_type)
+            for listing in first_listings.values()
         ]
 
     async def save_dividends(self, dividends: list[DividendPayout]) -> list[DividendPayout]:
