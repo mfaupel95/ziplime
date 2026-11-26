@@ -2,6 +2,9 @@ name: Publish Python 🐍 distribution 📦 to PyPI
 
 on: push
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build distribution 📦
@@ -23,6 +26,25 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
+
+  windows-wheel-smoke:
+    name: Windows wheel offline bond smoke test
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12.x'
+    - uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Install the built wheel and run the offline bond regression
+      run: python .github/scripts/windows_wheel_smoke.py dist
 
   publish-to-pypi:
     name: >-
